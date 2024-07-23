@@ -25,6 +25,10 @@ class KMeans(object):
         self.columns = [i for i in data.columns[start_var:end_var]]
         self.centroids = pd.DataFrame(columns=self.columns)
         self.calcMode = calcMode
+        self.distancesMean = []
+
+    def getDistancesMean(self):
+        return self.distancesMean
 
 
     def initialize_centroids(self, data):
@@ -66,7 +70,12 @@ class KMeans(object):
             
 
             for j in range(len(self.centroids)):
-                distance = self.get_euclidean_distance(sliced_data, self.centroids.iloc[j])
+                if (self.calcMode == 2):
+                    distance = self.get_cosine_distance(sliced_data, self.centroids.iloc[j])
+                else:
+                    distance = self.get_euclidean_distance(sliced_data, self.centroids.iloc[j])             
+                
+                
 
                 distances[j] = distance
                         
@@ -81,39 +90,52 @@ class KMeans(object):
             self.centroids = pd.concat([self.centroids, point], ignore_index=True)
 
         return self.centroids
-    # def initialize_clustroids(self, data):
+
         
-    def get_clustroid(data):
-        
-        point = data.iloc[index, self.start_var:self.end_var]
-        point = point.set_axis(self.centroids.columns).to_frame().T
-        self.centroids = pd.concat([self.centroids, point], ignore_index=True)
-        sliced_data = data.iloc[:, self.start_var:self.end_var]
-        
-        for i in range(1, self.k):
+    def get_cosine_distance(self, point1, point2):
+        """Returns the Euclidean distance between two data points. These
+        data points can be represented as 2 Series objects. This function can
+        also compute the Euclidean distance between a list of data points
+        (represented as a DataFrame) and a single data point (represented as
+        a Series), using broadcasting.
 
+        The Euclidean distance can be computed by getting the square root of
+        the sum of the squared difference between each variable of each data
+        point.
 
-            distances = pd.DataFrame()
-            
+        For the arguments point1 and point2, you can only pass these
+        combinations of data types:
+        - Series and Series -- returns np.float64
+        - DataFrame and Series -- returns pd.Series
 
-            for j in range(len(self.centroids)):
-                distance = self.get_euclidean_distance(sliced_data, self.centroids.iloc[j])
+        For a DataFrame and a Series, if the shape of the DataFrame is
+        (3, 2), the shape of the Series should be (2,) to enable broadcasting.
+        This operation will result to a Series of shape (3,)
 
-                distances[j] = distance
-                        
+        Arguments:
+            point1 {Series or DataFrame} - data point
+            point2 {Series or DataFrame} - data point
+        Returns:
+            np.float64 or pd.Series -- contains the Euclidean distance
+            between the data points.
+        """
+    
+        point1 = point1.astype(float)
+        point2 = point2.astype(float)
+    
+        dot_product = point1.dot(point2)
+    
+        norm_point1 = np.linalg.norm(point1)
+        norm_point2 = np.linalg.norm(point2)
 
+        if norm_point1 == 0 or norm_point2 == 0:
+            return 1.0  
+    
+        cosine_similarity = dot_product / (norm_point1 * norm_point2)
+        cosine_distance = 1 - cosine_similarity
+    
+        return cosine_distance
 
-            min_distances = distances.min(axis=1)
-            index = min_distances.idxmax()
-                
-
-            point = data.iloc[index, self.start_var:self.end_var]
-            point = point.set_axis(self.centroids.columns).to_frame().T
-            self.centroids = pd.concat([self.centroids, point], ignore_index=True)
-
-        return self.centroids
-        
-    # def get_cohesion(clustroid, point):
         
 
     def get_euclidean_distance(self, point1, point2):
@@ -166,13 +188,22 @@ class KMeans(object):
             Series -- represents the cluster of each data point in the dataset.
         """
 
+
         distances = pd.DataFrame()
         sliced_data = data.iloc[:, self.start_var:self.end_var]
         for i in range(self.k):
+            if(self.calcMode == 2):
 
-            distances[i] = self.get_euclidean_distance(sliced_data, self.centroids.iloc[i])
+                distances[i] = self.get_cosine_distance(sliced_data, self.centroids.iloc[i]) 
+            else:
+                distances[i] = self.get_euclidean_distance(sliced_data, self.centroids.iloc[i])
+       
+
+            
 
         groups = pd.Series(distances.idxmin(axis=1))
+
+
 
         return groups
 
@@ -181,6 +212,9 @@ class KMeans(object):
         grouped_data = pd.concat([data, groups.rename('group')], axis=1)
 
         centroids = grouped_data.groupby('group')[self.columns].mean()
+        # print(grouped_data)
+        # print(f"We have {self.k} but the shape is {centroids.shape}")
+
         return centroids
 
     def train(self, data, iters):
@@ -189,6 +223,7 @@ class KMeans(object):
         i = 0
         flag_groups = False
         flag_centroids = False
+
 
         while i < iters and not flag_groups and not flag_centroids:
 
@@ -214,6 +249,7 @@ class KMeans(object):
 
             i += 1
             print('Iteration', i)
+            
 
         print('Done clustering!')
         return cur_groups
