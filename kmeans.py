@@ -248,6 +248,7 @@ class KMeans(object):
             self.centroids = centroids
 
             i += 1
+        print(f"Finished Clustering at {i} iterations")
 
             
 
